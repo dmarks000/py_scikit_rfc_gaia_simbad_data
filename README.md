@@ -18,3 +18,7 @@ This is a data collection script that obtains data from GAIA and/or SIMBAD. By d
 'skyfile' is the GAIA data file.
 'skyfile2' is the SIMBAD data file.
 'coord' is a coordinate of SkyCoord data type.
+
+n_generic_manual.py:
+
+This is the script that holds the actual RF method+analysis. A template is provided at the beginning of the script you must modify to suit your cluster. After that, provide a training probability csv, and the script will call Gaia_Data_Collect.py if you don't have a formatted data file for it to read.
