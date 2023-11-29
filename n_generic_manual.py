@@ -10,57 +10,24 @@ from sklearn.ensemble import RandomForestClassifier
 import os
 import matplotlib.patches as mpatches
 
-ngc_2420 = {
-    "cluster_name" : "NGC_2420",
-    "name" : "NGC 2420",
-    "filename" : "n2420",
-    "center" : [-1.190, -2.125], #e.g. for ngc_2420
-    "good_radius" : 0.12,
-    "bad_radius" : 0.24,
-    "parallax" : [0.463,0.263],
-    "use_search" : False
+#remove the # in the parameter areas for your cluster.
+ngc_#### = {
+    "cluster_name" : "NGC_####",
+    "name" : "NGC ####",
+    "filename" : "n####",
+    "center" : [###, ###], #e.g. for ngc_2420, this is PROPER MOTIONS [right ascension,declination.]
+    "good_radius" : ###, # in miliarcseconds
+    "bad_radius" : ###, # in miliarcseconds
+    "parallax" : [###,###], # in miliarcseconds (angle parallax)
+    "use_search" : False, # means you have a data file for ngc 2420. do True and the following if you don't.
+    "coord" : SkyCoord(ra=#ra, dec=#dec, unit=(u.degree, u.degree), frame='icrs') #Note, if the above is True this field may be null or even undefined.
 }
-
-ngc_6253 = {
-    "cluster_name" : "NGC_6253",
-    "name" : "NGC 6253",
-    "filename" : "n6253",
-    "center" : [-4.537, -5.280],
-    "good_radius" : 0.17,
-    "bad_radius" : 0.35,
-    "parallax" : [0.68,0.48],
-    "use_search" : False
-}
-
-ngc_663 = {
-    "cluster_name" : "NGC_663",
-    "name" : "NGC 663",
-    "filename" : "n663",
-    "center" : [-1.110, -0.235],
-    "good_radius" : 0.17,
-    "bad_radius" : 0.45,
-    "parallax" : [0.42,0.22],
-    "use_search" : False
-}
-
-ngc_2632 = {
-    "cluster_name" : "NGC_2632",
-    "name" : "NGC 2632",
-    "filename" : "n2632",
-    "center" : [-36.047, -12.917],
-    "good_radius" : 0.3,
-    "bad_radius" : 0.5,
-    "parallax" : [5.5,5.0],
-    "use_search" : True,
-    "coord" : SkyCoord(ra=130.054, dec=19.621, unit=(u.degree, u.degree), frame='icrs') #Note, if the above is not used this field may be null.
-}
-
 cluster_params = ngc_663
 
 # read cone search results from a file
-inputfilename = cluster_params.get("filename") + '_cone.csv'
-modelfilename = cluster_params.get("filename") + '_model_file.data'
-input_table_base = cluster_params.get("cluster_name") + '_clean_gaia_data.csv'
+inputfilename = cluster_params.get("filename") + '_cone.csv' #File that must be provided if use_search is false.
+modelfilename = cluster_params.get("filename") + '_model_file.data' #File that is generated if this script has been run before (OK if it doesnt exist.)
+input_table_base = cluster_params.get("cluster_name") + '_clean_gaia_data.csv' #File that is ALWAYS NEEDED. Training set probabilities.
 
 ID=[];ra=[];dec=[];plx=[];eplx=[];pmra=[];epmra=[];pmdec=[];epmdec=[];g=[];bp=[];rp=[];bprp=[];rv=[];teff=[];ag=[];ebprp=[];vflag=[]
 if cluster_params["use_search"] == True: 
