@@ -7,9 +7,12 @@ from astropy.coordinates import SkyCoord
 from astroquery.gaia import Gaia
 from astroquery.simbad import Simbad
 from sklearn.ensemble import RandomForestClassifier
+import os
+import matplotlib.patches as mpatches
 
 ngc_2420 = {
     "cluster_name" : "NGC_2420",
+    "name" : "NGC 2420",
     "filename" : "n2420",
     "center" : [-1.190, -2.125], #e.g. for ngc_2420
     "good_radius" : 0.12,
@@ -20,6 +23,7 @@ ngc_2420 = {
 
 ngc_6253 = {
     "cluster_name" : "NGC_6253",
+    "name" : "NGC 6253",
     "filename" : "n6253",
     "center" : [-4.537, -5.280],
     "good_radius" : 0.17,
@@ -30,6 +34,7 @@ ngc_6253 = {
 
 ngc_663 = {
     "cluster_name" : "NGC_663",
+    "name" : "NGC 663",
     "filename" : "n663",
     "center" : [-1.110, -0.235],
     "good_radius" : 0.17,
@@ -40,16 +45,17 @@ ngc_663 = {
 
 ngc_2632 = {
     "cluster_name" : "NGC_2632",
+    "name" : "NGC 2632",
     "filename" : "n2632",
     "center" : [-36.047, -12.917],
-    "good_radius" : 0.2,
-    "bad_radius" : 0.4,
+    "good_radius" : 0.3,
+    "bad_radius" : 0.5,
     "parallax" : [5.5,5.0],
     "use_search" : True,
-    "coord" : SkyCoord("07h38m24.5s +21 34 30", unit=(u.hourangle,u.deg), frame='icrs') #Note, if the above is not used this field may be null.
+    "coord" : SkyCoord(ra=130.054, dec=19.621, unit=(u.degree, u.degree), frame='icrs') #Note, if the above is not used this field may be null.
 }
 
-cluster_params = ngc_2420
+cluster_params = ngc_663
 
 # read cone search results from a file
 inputfilename = cluster_params.get("filename") + '_cone.csv'
@@ -58,23 +64,24 @@ input_table_base = cluster_params.get("cluster_name") + '_clean_gaia_data.csv'
 
 ID=[];ra=[];dec=[];plx=[];eplx=[];pmra=[];epmra=[];pmdec=[];epmdec=[];g=[];bp=[];rp=[];bprp=[];rv=[];teff=[];ag=[];ebprp=[];vflag=[]
 if cluster_params["use_search"] == True: 
-    import Gaias_Data_Collect as gdc
-    astrtble = gdc.return_table_with_data(skyfile = cluster_params.get("cluster_name") + 'data.dat', skyfile2 = cluster_params.get("cluster_name") + 'data_sim.dat', coord = cluster_params["coord"])
-    # import csv
-    ID = astrtble["DESIGNATION"]
-    ra = astrtble['ra']
-    dec = astrtble['dec']
-    plx = astrtble['parallax']
-    eplx = astrtble['parallax_error']
-    pmra = astrtble['pmra']
-    epmra = astrtble['pmra_error']
-    pmdec = astrtble['pmdec']
-    epmdec = astrtble['pmdec_error']
-    g = astrtble['phot_g_mean_flux']
-    bp = astrtble['phot_bp_mean_flux']
-    rp = astrtble['phot_rp_mean_flux']
-    rv = astrtble['radial_velocity']
-    bprp = astrtble['bp_rp']
+     import Gaias_Data_Collect as gdc
+     astrtble = gdc.return_table_with_data(skyfile = cluster_params.get("filename") + 'data.dat', skyfile2 = cluster_params.get("cluster_name") + 'data_sim.dat', coord = cluster_params["coord"],mode=0)
+     # import csv
+     ID = astrtble["DESIGNATION"][astrtble['parallax'] > 0]
+     ra = astrtble['ra'][astrtble['parallax'] > 0]
+     dec = astrtble['dec'][astrtble['parallax'] > 0]
+     plx = astrtble['parallax'][astrtble['parallax'] > 0]
+     eplx = astrtble['parallax_error'][astrtble['parallax'] > 0]
+     pmra = astrtble['pmra'][astrtble['parallax'] > 0]
+     epmra = astrtble['pmra_error'][astrtble['parallax'] > 0]
+     pmdec = astrtble['pmdec'][astrtble['parallax'] > 0]
+     epmdec = astrtble['pmdec_error'][astrtble['parallax'] > 0]
+     g = astrtble['phot_g_mean_mag'][astrtble['parallax'] > 0]
+     bp = astrtble['phot_bp_mean_mag'][astrtble['parallax'] > 0]
+     rp = astrtble['phot_rp_mean_mag'][astrtble['parallax'] > 0]
+     rv = astrtble['radial_velocity'][astrtble['parallax'] > 0]
+     #bprp = astrtble['bp_rp'][astrtble['parallax'] > 0]
+     bprp = np.subtract(bp,rp)
 else:
     import csv
     ID=[];ra=[];dec=[];plx=[];eplx=[];pmra=[];epmra=[];pmdec=[];epmdec=[];g=[];bp=[];rp=[];bprp=[];rv=[];teff=[];ag=[];ebprp=[];vflag=[]
@@ -179,19 +186,25 @@ else:
                 g.append(tmplist[6])
                 bprp.append(tmplist[7])
 
-
 ra = np.array(ra); dec=np.array(dec); pmra=np.array(pmra); pmdec=np.array(pmdec)
 g = np.array(g); bprp=np.array(bprp); plx=np.array(plx)
 jtrain = np.zeros(len(ID),dtype=int) # 0 for not in training list, 1 for in the list
 ptrain = np.zeros(len(ID),dtype=float) # store probabilities here
 colors = ['']*len(ID)
 
+c_path = os.getcwd()
+n_path = os.path.join(c_path,cluster_params.get("cluster_name"))
+if not os.path.exists(n_path):
+     os.mkdir(n_path)
+rcParams.update({'axes.titlesize':'large'})
 # 1. plot proper motions to draw a generous circle for member/nonmember
 plot(pmra,pmdec,'b+')
 xlabel(r'$\mu_\alpha$ (mas yr$^{-1}$)')
 ylabel(r'$\mu_\delta$ (mas ys$^{-1}$)')
-title('Proper motions')
-show()
+title('Proper motions of ' + cluster_params["name"])
+cluster_params.get("cluster_name")
+plt.savefig(cluster_params.get("cluster_name") + '/' + cluster_params.get("cluster_name") + '_fig_1_pm.png',dpi=200)
+clf()
 
 import csv
 csvfile = input_table_base
@@ -269,36 +282,91 @@ for i in range(len(ra)):
                ptrain[i] = 0.0
                ptraintrue[i]=1
 
+nlstbp = []
+nlstg = []
+nlstc = []
+nlstpr = []
+nlstpd = []
+nlstra = []
+nlstdc = []
+for i in range(len(bprp)):
+     if colors[i] == 'xkcd:booger':
+          continue
+     nlstbp.append(bprp[i])
+     nlstg.append(g[i])
+     nlstc.append(colors[i])
+     nlstpr.append(pmra[i])
+     nlstpd.append(pmdec[i])
+     nlstra.append(ra[i])
+     nlstdc.append(dec[i])
 
-
+handles=[mpatches.Patch(color='xkcd:aquamarine', label=r'$\geq$'+'90%'),mpatches.Patch(color='xkcd:pale green', label=r'$\geq$'+'80%'),mpatches.Patch(color='xkcd:pale yellow', label=r'$\geq$'+'70%'),mpatches.Patch(color='xkcd:mustard yellow', label=r'$\geq$'+'60%'),mpatches.Patch(color='xkcd:light red', label=r'$\geq$'+'50%'),
+               mpatches.Patch(color='xkcd:rust', label=r'$\geq$'+'40%'),mpatches.Patch(color='xkcd:puce', label=r'$\geq$'+'30%'),mpatches.Patch(color='xkcd:plum', label=r'$\geq$'+'20%'),mpatches.Patch(color='xkcd:royal purple', label=r'$\geq$'+'10%')]
+handles2=[mpatches.Patch(color='xkcd:black', label=r'$\geq$'+'50%'),mpatches.Patch(color='xkcd:booger', label=r'$\equal$'+'0%'),mpatches.Patch(color='xkcd:gray', label=r'$\equal$'+'??%')]
+handles3=[mpatches.Patch(color='xkcd:black', label=r'$\geq$'+'50%'),mpatches.Patch(color='xkcd:gray', label=r'$\equal$'+'??%')]
 # plot training data
 #fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2, figsize=(12, 6))
-fig, axis = plt.subplots(nrows=2, ncols=2)
-axis[0,0].scatter(ra, dec, c=colors, s=2)
-axis[0,0].set_title("RA - dec")
-axis[0,0].set_ylabel(r'Dec (deg)')
-axis[0,0].set_xlabel(r'R.A. (deg)')
-axis[0,1].scatter(pmra, pmdec, c=colors, s=2)
-axis[0,1].set_title("pmRA - pmDEC")
-axis[0,1].set_ylabel(r'pmdec (mas yr$^{-1}$)')
-axis[0,1].set_xlabel(r'pmRA (mas yr$^{-1}$)')
+#fig, axis = plt.subplots(nrows=2, ncols=2)
+scatter(ra, dec, c=colors, s=2)
+title("Star Membership Inclusion: \n" + cluster_params["name"] + " Right Ascension v. Declination")
+ylabel(r'Declination (deg)')
+xlabel(r'Right Ascension (deg)')
+legend(handles=handles2)
+plt.savefig(cluster_params.get("cluster_name") + '/' + cluster_params.get("cluster_name") + '_fig_2_radecbf.png',dpi=200)
+clf()
 
-#print(len(plx),' should equal',len(jtrain))
+scatter(nlstra, nlstdc, c=nlstc, s=2)
+title("Star Membership Inclusion: \n" + cluster_params["name"] + " Right Ascension v. Declination")
+ylabel(r'Declination (deg)')
+xlabel(r'Right Ascension (deg)')
+legend(handles=handles2)
+plt.savefig(cluster_params.get("cluster_name") + '/' + cluster_params.get("cluster_name") + '_fig_2_radecbf_flt.png',dpi=200)
+clf()
+
+scatter(pmra, pmdec, c=colors, s=2)
+title("Star Membership Inclusion: " + cluster_params["name"] + "\nProper Motions Right Ascension v. Proper Motions Declination")
+ylabel(r'Proper Motions Declination (mas yr$^{-1}$)')
+xlabel(r'Proper Motions Right Ascension (mas yr$^{-1}$)')
+legend(handles=handles2)
+plt.savefig(cluster_params.get("cluster_name") + '/' + cluster_params.get("cluster_name") + '_fig_3_pmbf.png',dpi=200)
+clf()
+
+scatter(nlstpr, nlstpd, c=nlstc, s=2)
+title("Star Membership Inclusion: " + cluster_params["name"] + "\nProper Motions Right Ascension v. Proper Motions Declination")
+ylabel(r'Proper Motions Declination (mas yr$^{-1}$)')
+xlabel(r'Proper Motions Right Ascension (mas yr$^{-1}$)')
+legend(handles=handles2)
+plt.savefig(cluster_params.get("cluster_name") + '/' + cluster_params.get("cluster_name") + '_fig_3_pmbf_flt.png',dpi=200)
+clf()
 
 comp1=plx[(ptrain < 0.5)]
 comp2=plx[(ptrain > 0.5)]
-axis[1,0].hist([comp1,comp2],bins=100,range=(0.0,cluster_params["parallax"][0]*2.5),stacked=True,color=['xkcd:light gray','xkcd:crimson'])
-axis[1,0].set_title("Parallax")
-axis[1,0].set_xlabel('Parallax (miliarcsec)')
-axis[1,0].set_ylabel('N')
+hist([comp1,comp2],bins=100,range=(0.0,cluster_params["parallax"][0]*2.5),stacked=True,color=['xkcd:light gray','xkcd:crimson'])
+title("Parallax of " + cluster_params["name"] + ".\n(Red is the estimated members.)")
+xlabel('Parallax (miliarcsec)')
+ylabel('Number of Stars')
+plt.savefig(cluster_params.get("cluster_name") + '/' + cluster_params.get("cluster_name") + '_fig_4_pxbf.png',dpi=200)
+clf()
 
-axis[1,1].scatter(bprp,g,c=colors, s=2)
-axis[1,1].set_xlim([-1,4])
-axis[1,1].set_ylim([22.0,8.0])
-axis[1,1].set_xlabel('BP-RP')
-axis[1,1].set_ylabel('G (mag)')
-plt.subplots_adjust(hspace=0.4,wspace=0.4)
-show()
+scatter(bprp,g,c=colors, s=2)
+xlim([-1,4])
+ylim([22.0,6.0])
+xlabel('BP - RP (magnitude)')
+ylabel('Gaia Filter Apparent Magnitude')
+title(cluster_params["name"]+" Color Magnitude Diagram\nEstimated Probabilities")
+legend(handles=handles2)
+plt.savefig(cluster_params.get("cluster_name") + '/' + cluster_params.get("cluster_name") + '_fig_5_bprp.png',dpi=200)
+clf()
+
+scatter(nlstbp,nlstg,c=nlstc, s=2)
+xlim([-1,4])
+ylim([22.0,6.0])
+xlabel('BP - RP (magnitude)')
+ylabel('Gaia Filter Apparent Magnitude')
+title(cluster_params["name"]+" Color Magnitude Diagram\nEstimated Probabilities")
+legend(handles=handles3)
+plt.savefig(cluster_params.get("cluster_name") + '/' + cluster_params.get("cluster_name") + '_fig_5_bprp_flt.png',dpi=200)
+clf()
 
 foo = jtrain[ptrain > 0.5]
 print('Before random forest, we have ',len(foo),'members')
@@ -316,7 +384,6 @@ try:
 except:
      o_rfc = NAN
      fresh = True
-fresh = True
 ### recipe: https://stackabuse.com/random-forest-algorithm-with-python-and-scikit-learn/
 score = 0
 iterations = 0
@@ -352,7 +419,10 @@ for i in range(len(ytrain3)):
 if fresh == True: 
      beegscore = 0.998
 else:
-     beegscore = max(0.95,o_rfc.score(data3,ytrain4))
+     try:
+          beegscore = max(0.95,o_rfc.score(data3,ytrain4))
+     except:
+          beegscore = 0.998
 redo = 1
 print("Score to Beat:",max(beegscore,0.95))
 
@@ -362,6 +432,9 @@ for i in range(len(ytrain3)):
      sampletrain[i] = min(2,max(0,1+4*((ytrain3[i]+0.5)**2)))
 
 skip = False # debug
+skip_if_Not_Fresh = False
+if fresh == False and skip_if_Not_Fresh == True:
+     skip = True
 while score < beegscore and iterations < 20:
      if skip == True:
           break
@@ -469,43 +542,13 @@ for i in range(len(rfmemtest)):
           sizes.append(0.25)
           noncount = noncount + 1
 rfmem2 = rfmem2test
-
-print('After random forest, we have ',memcount,'members')
-
-#fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2, figsize=(12, 6))
-fig, axis = plt.subplots(nrows=2, ncols=2)
-axis[0,0].scatter(ra,dec, c=rfmem2, s=sizes)
-axis[0,0].set_title("RA - dec")
-axis[0,0].set_ylabel(r'Dec (deg)')
-axis[0,0].set_xlabel(r'R.A. (deg)')
-
-axis[0,1].scatter(pmra, pmdec, c=rfmem2, s=sizes)
-axis[0,1].set_title("pmRA - pmDEC")
-axis[0,1].set_ylabel(r'pmdec (mas yr$^{-1}$)')
-axis[0,1].set_xlabel(r'pmRA (mas yr$^{-1}$)')
-
-#show()
-
-
-#fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2, figsize=(12, 6))
-comp1=plx[rfmem <0.2]
-comp2=plx[rfmem >= 0.2]
-axis[1,0].hist([comp1,comp2],bins=100,range=(0.0,cluster_params["parallax"][0]*2.5),stacked=True,color=['xkcd:light gray','xkcd:red'])
-axis[1,0].set_title("Parallax")
-axis[1,0].set_xlabel('Parallax (miliarcsec)')
-axis[1,0].set_ylabel('N')
-
-axis[1,1].scatter(bprp,g,c=rfmem2, s=sizes)
-axis[1,1].set_xlim([-1,4])
-axis[1,1].set_ylim([22.0,8.0])
-axis[1,1].set_xlabel('BP-RP')
-axis[1,1].set_ylabel('G (mag)')
-plt.subplots_adjust(hspace=0.4,wspace=0.4)
-show()
-
 n_rfmem = []
 n_bprp = []
 n_g = []
+n_pmra = []
+n_pmdec = []
+n_ra = []
+n_dec = []
 for i in range(len(rfmem2)):
      if rfmem2[i] == 'xkcd:navy blue':
           continue
@@ -520,18 +563,118 @@ for i in range(len(rfmem2)):
      n_rfmem.append(rfmem2[i])
      n_bprp.append(bprp[i])
      n_g.append(g[i])
+     n_pmra.append(pmra[i])
+     n_pmdec.append(pmdec[i])
+     n_ra.append(ra[i])
+     n_dec.append(dec[i])
+n_probs = []
+for i in range(len(rfmem2)):
+     n_probs.append(rfmemtest[i][snum] * 100)
 
-fig = plt.scatter(n_bprp,n_g,c=n_rfmem, s=2)
-xlim([-1,4])
-ylim([22.0,8.0])
-xlabel('BP - RP (magnitude) (Blue Photometry minus Red Photometry)')
-ylabel('Gaia Filter Apparent Magnitude')
-title("Color Magnitude Diagram - Probabilities")
-import matplotlib.patches as mpatches
-handles=[mpatches.Patch(color='xkcd:aquamarine', label='>=90%'),mpatches.Patch(color='xkcd:pale green', label='>=80%'),mpatches.Patch(color='xkcd:pale yellow', label='>=70%'),mpatches.Patch(color='xkcd:mustard yellow', label='>=60%'),mpatches.Patch(color='xkcd:light red', label='>=50%'),
-               mpatches.Patch(color='xkcd:rust', label='>=40%'),mpatches.Patch(color='xkcd:puce', label='>=30%'),mpatches.Patch(color='xkcd:plum', label='>=20%'),mpatches.Patch(color='xkcd:royal purple', label='>=10%')]
+print('After random forest, we have ',memcount,'members')
+
+#fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2, figsize=(12, 6))
+#fig, axis = plt.subplots(nrows=2, ncols=2)
+scatter(ra,dec, c=rfmem2, s=sizes)
+title("Star Membership Inclusion: \n" + cluster_params["name"] + " Right Ascension v. Declination")
+ylabel(r'Declination (deg)')
+xlabel(r'Right Ascension (deg)')
 legend(handles=handles)
-show()
+plt.savefig(cluster_params.get("cluster_name") + '/' + cluster_params.get("cluster_name") + '_fig_6_radecaf.png',dpi=200)
+clf()
+
+scatter(n_ra,n_dec, c=n_rfmem, s=2)
+title("Star Membership Inclusion: \n" + cluster_params["name"] + " Right Ascension v. Declination")
+ylabel(r'Declination (deg)')
+xlabel(r'Right Ascension (deg)')
+legend(handles=handles)
+plt.savefig(cluster_params.get("cluster_name") + '/' + cluster_params.get("cluster_name") + '_fig_6_radecaf_flt.png',dpi=200)
+clf()
+
+scatter(pmra, pmdec, c=rfmem2, s=sizes)
+title("Star Membership Inclusion: " + cluster_params["name"] + "\nProper Motions Right Ascension v. Proper Motions Declination")
+ylabel(r'Proper Motions Declination (mas yr$^{-1}$)')
+xlabel(r'Proper Motions Right Ascension (mas yr$^{-1}$)')
+legend(handles=handles)
+plt.savefig(cluster_params.get("cluster_name") + '/' + cluster_params.get("cluster_name") + '_fig_7_pmaf.png',dpi=200)
+clf()
+
+scatter(n_pmra, n_pmdec, c=n_rfmem, s=2)
+title("Star Membership Inclusion: " + cluster_params["name"] + "\nProper Motions Right Ascension v. Proper Motions Declination")
+ylabel(r'Proper Motions Declination (mas yr$^{-1}$)')
+xlabel(r'Proper Motions Right Ascension (mas yr$^{-1}$)')
+legend(handles=handles)
+plt.savefig(cluster_params.get("cluster_name") + '/' + cluster_params.get("cluster_name") + '_fig_7_pmaf_flt.png',dpi=200)
+clf()
+
+#show()
+
+#fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2, figsize=(12, 6))
+hist(n_probs,bins=100,range=(0.0,100.0),stacked=True,color='xkcd:red')
+title("Probability Distributions of " + cluster_params["name"] + ".\n(From 0% to 100%)")
+xlabel('Probability')
+ylabel('Number of Stars')
+plt.savefig(cluster_params.get("cluster_name") + '/' + cluster_params.get("cluster_name") + '_fig_11_probdist.png',dpi=200)
+clf()
+
+n2_probs = []
+for i in range(len(n_probs)):
+     if(n_probs[i] == 0):
+          continue
+     n2_probs.append(rfmemtest[i][snum] * 100)
+hist(n2_probs,bins=100,range=(0.0,100.0),stacked=True,color='xkcd:red')
+title("Probability Distributions of " + cluster_params["name"] + ".\n(From 0% to 100%) (0% Excluded)")
+xlabel('Probability')
+ylabel('Number of Stars')
+plt.savefig(cluster_params.get("cluster_name") + '/' + cluster_params.get("cluster_name") + '_fig_11_probdist_flt.png',dpi=200)
+clf()
+
+n2_probs = []
+for i in range(len(n_probs)):
+     if(n_probs[i] <= 5):
+          continue
+     n2_probs.append(rfmemtest[i][snum] * 100)
+hist(n2_probs,bins=100,range=(0.0,100.0),stacked=True,color='xkcd:red')
+title("Probability Distributions of " + cluster_params["name"] + ".\n(From 0% to 100%) (0% Excluded)")
+xlabel('Probability')
+ylabel('Number of Stars')
+plt.savefig(cluster_params.get("cluster_name") + '/' + cluster_params.get("cluster_name") + '_fig_11_probdist_flt_2.png',dpi=200)
+clf()
+
+
+#fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2, figsize=(12, 6))
+comp1=plx[rfmem <0.2]
+comp2=plx[rfmem >= 0.2]
+hist([comp1,comp2],bins=100,range=(0.0,cluster_params["parallax"][0]*2.5),stacked=True,color=['xkcd:light gray','xkcd:red'])
+title("Parallax of " + cluster_params["name"] + ".\n(Red is the machine-estimated members.)")
+xlabel('Parallax (miliarcsec)')
+ylabel('Number of Stars')
+plt.savefig(cluster_params.get("cluster_name") + '/' + cluster_params.get("cluster_name") + '_fig_8_pxaf.png',dpi=200)
+clf()
+
+
+scatter(bprp,g,c=rfmem2, s=sizes)
+xlim([-1,4])
+ylim([22.0,6.0])
+xlabel('BP - RP (magnitude)')
+ylabel('Gaia Filter Apparent Magnitude')
+title(cluster_params["name"]+" Color Magnitude Diagram - Probabilities")
+legend(handles=handles)
+plt.savefig(cluster_params.get("cluster_name") + '/' + cluster_params.get("cluster_name") + '_fig_9_bprpaf.png',dpi=200)
+clf()
+
+scatter(n_bprp,n_g,c=n_rfmem, s=2)
+xlim([-1,4])
+ylim([22.0,6.0])
+xlabel('BP - RP (magnitude)')
+ylabel('Gaia Filter Apparent Magnitude')
+title(cluster_params["name"]+" Color Magnitude Diagram - Probabilities")
+legend(handles=handles)
+plt.savefig(cluster_params.get("cluster_name") + '/' + cluster_params.get("cluster_name") + '_fig_10_bprpaf_filt_10.png',dpi=200)
+clf()
+
+
+
 
 #and now I single out the stragglers. Or try to.
 stragglers_data = []
