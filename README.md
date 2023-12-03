@@ -1,4 +1,4 @@
-# py_scikit_rfc_gaia_simbad_data
+# Python-Scikit-Learn-Random Forest Classifier- using GAIA/Simbad data, classifying members of Star Clusters
 Utilizing sci-kit-learn's random forest classifier to catagorize membership probabilities of star clusters, via gaia/simbad data.
 
 #Script explanation:
